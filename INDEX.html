@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RAKSPRODUK ONLINE - CLOUD SYSTEM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --wa: #25D366; --info: #3498db; --warning: #f39c12; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #f4f4f9; padding-bottom: 80px; overflow-x: hidden; }
+        
+        /* Header & Navigasi */
+        header { background: var(--primary); color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        .nav-tabs { display: flex; background: #fff; position: sticky; top: 52px; z-index: 99; border-bottom: 1px solid #ddd; }
+        .nav-btn { flex: 1; padding: 12px; text-align: center; cursor: pointer; border: none; background: none; font-weight: bold; font-size: 0.65rem; color: #777; }
+        .nav-btn.active { color: var(--info); border-bottom: 3px solid var(--info); }
+        
+        /* Konten */
+        .page { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: relative; display: flex; flex-direction: column; }
+        .media-frame { width: 100%; aspect-ratio: 1/1; background: #ddd; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .media-frame img, .media-frame video { width: 100%; height: 100%; object-fit: cover; }
+        
+        .info { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; gap: 5px; }
+        .name { font-size: 0.85rem; font-weight: bold; height: 32px; overflow: hidden; color: #333; }
+        .price { color: var(--danger); font-weight: bold; font-size: 0.95rem; }
+        
+        .btn-action { width: 100%; padding: 8px; border-radius: 5px; font-size: 0.75rem; border: none; font-weight: bold; cursor: pointer; color: white; margin-top: 5px; }
+        .bg-info { background: var(--info); }
+        .bg-success { background: var(--success); }
+        
+        /* Admin UI */
+        .admin-only { display: none; }
+        .admin-controls { position: absolute; top: 5px; right: 5px; display: flex; gap: 5px; z-index: 10; }
+        .btn-ctrl { color: white; border: none; padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1001; justify-content: center; align-items: center; }
+        .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 10px; }
+        input, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        
+        /* Floating Button */
+        .fab { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: white; width: 60px; height: 60px; border-radius: 50%; border: none; z-index: 100; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: none; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="width:30px"></div> 
+        <div class="title">RAKSPRODUK ONLINE</div>
+        <i class="fa-solid fa-lock" id="lock-icon" onclick="loginAdmin()" style="cursor:pointer; padding: 10px;"></i>
+    </header>
+
+    <div class="nav-tabs">
+        <button class="nav-btn active" onclick="switchPage('home', this)">BACKUP SERVER</button>
+        <button class="nav-btn" onclick="switchPage('plugin', this)">PLUGIN SERVER</button>
+        <button class="nav-btn" onclick="switchPage('media', this)">MEDIA</button>
+    </div>
+
+    <div id="page-home" class="page active"><div class="container" id="product-list"></div></div>
+    <div id="page-plugin" class="page"><div class="container" id="plugin-list"></div></div>
+    <div id="page-media" class="page"><div id="socmed-list">Tunggu sebentar...</div></div>
+
+    <button class="fab" id="btn-add-master" onclick="openModal()"><i class="fa-solid fa-plus"></i></button>
+
+    <div class="modal" id="modalAdd">
+        <div class="modal-content">
+            <h3 id="modalTitle">Tambah ke Cloud</h3>
+            <input type="text" id="namaInput" placeholder="Nama Produk">
+            <input type="text" id="hargaInput" placeholder="Harga (Contoh: Rp 50.000)">
+            <textarea id="descInput" rows="3" placeholder="Deskripsi Singkat"></textarea>
+            <input type="file" id="fileInput" accept="image/*,video/*">
+            <button onclick="saveToCloud()" style="width:100%; padding:12px; background:var(--success); color:white; border:none; border-radius:5px; font-weight:bold;">SIMPAN KE AWAN</button>
+            <button onclick="closeModal()" style="width:100%; margin-top:8px; padding:10px; background:#ccc; border:none; border-radius:5px;">BATAL</button>
+        </div>
+    </div>
+
+    <script>
+        // KONFIGURASI FIREBASE KAMU (SUDAH SIAP PAKAI)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAPIBmTyQEqkW3mqQ7ODre6...", 
+            authDomain: "raksproduk-9e8b7.firebaseapp.com",
+            databaseURL: "https://raksproduk-9e8b7-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "raksproduk-9e8b7",
+            storageBucket: "raksproduk-9e8b7.appspot.com",
+            messagingSenderId: "443507552363",
+            appId: "1:443507552363:web:1836b53c4490bf4aa6412e"
+        };
+
+        // Inisialisasi Koneksi
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let isAdmin = false, currentPage = 'home';
+
+        // Fungsi Ambil Data Realtime
+        function initData() {
+            // Ambil data Backup Server
+            db.ref('products').on('value', (snapshot) => {
+                const list = document.getElementById('product-list');
+                list.innerHTML = '';
+                snapshot.forEach((child) => {
+                    list.innerHTML += createCard(child.val(), child.key, 'p');
+                });
+                checkAdminUI();
+            });
+
+            // Ambil data Plugin Server
+            db.ref('plugins').on('value', (snapshot) => {
+                const list = document.getElementById('plugin-list');
+                list.innerHTML = '';
+                snapshot.forEach((child) => {
+                    list.innerHTML += createCard(child.val(), child.key, 'pl');
+                });
+                checkAdminUI();
+            });
+        }
+
+        function createCard(p, id, type) {
+            return `
+                <div class="card">
+                    <div class="admin-controls admin-only">
+                        <button class="btn-ctrl" style="background:red" onclick="hapusCloud('${id}','${type}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="media-frame">
+                        <img src="${p.file || 'https://via.placeholder.com/150'}">
+                    </div>
+                    <div class="info">
+                        <div class="name">${p.nama}</div>
+                        <div class="price">${p.harga}</div>
+                        <button class="btn-action bg-success" onclick="window.open('https://wa.me/6281234567890')">BELI</button>
+                    </div>
+                </div>`;
+        }
+
+        // Simpan Data ke Firebase
+        function saveToCloud() {
+            const n = document.getElementById('namaInput').value;
+            const h = document.getElementById('hargaInput').value;
+            const d = document.getElementById('descInput').value;
+            const f = document.getElementById('fileInput').files[0];
+            const path = (currentPage === 'home') ? 'products' : 'plugins';
+
+            if(!n || !h) return alert("Nama dan Harga wajib diisi!");
+
+            if(f) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    db.ref(path).push({ nama: n, harga: h, desc: d, file: reader.result });
+                    closeModal();
+                };
+                reader.readAsDataURL(f);
+            } else {
+                db.ref(path).push({ nama: n, harga: h, desc: d });
+                closeModal();
+            }
+        }
+
+        // Hapus Data dari Firebase
+        function hapusCloud(id, type) {
+            if(confirm("Hapus produk ini dari database awan?")) {
+                const path = (type === 'p') ? 'products' : 'plugins';
+                db.ref(path + '/' + id).remove();
+            }
+        }
+
+        // Fungsi Navigasi & UI
+        function loginAdmin() {
+            const pass = prompt("Masukkan Password Admin:");
+            if(pass === "admin123") {
+                isAdmin = true;
+                alert("Login Berhasil!");
+                checkAdminUI();
+            }
+        }
+
+        function checkAdminUI() {
+            document.querySelectorAll('.admin-only').forEach(e => e.style.display = isAdmin ? 'flex' : 'none');
+            document.getElementById('btn-add-master').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('lock-icon').className = isAdmin ? "fa-solid fa-unlock" : "fa-solid fa-lock";
+        }
+
+        function switchPage(id, b) {
+            document.querySelectorAll('.page, .nav-btn').forEach(x => x.classList.remove('active'));
+            document.getElementById('page-'+id).classList.add('active');
+            b.classList.add('active');
+            currentPage = id;
+        }
+
+        function openModal() { document.getElementById('modalAdd').style.display = 'flex'; }
+        function closeModal() { document.getElementById('modalAdd').style.display = 'none'; }
+
+        window.onload = initData;
+    </script>
+</body>
+</html>
