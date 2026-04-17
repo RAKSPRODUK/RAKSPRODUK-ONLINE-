@@ -68,26 +68,31 @@
 
     <div id="page-home" class="page active"><div class="container" id="product-list"></div></div>
     <div id="page-plugin" class="page"><div class="container" id="plugin-list"></div></div>
-    <div id="page-media" class="page"><div id="socmed-list">Tunggu sebentar...</div></div>
+    <div id="page-media" class="page"><div id="socmed-list">Fitur Media segera hadir...</div></div>
 
     <button class="fab" id="btn-add-master" onclick="openModal()"><i class="fa-solid fa-plus"></i></button>
 
     <div class="modal" id="modalAdd">
         <div class="modal-content">
             <h3 id="modalTitle">Tambah ke Cloud</h3>
+            <br>
             <input type="text" id="namaInput" placeholder="Nama Produk">
             <input type="text" id="hargaInput" placeholder="Harga (Contoh: Rp 50.000)">
             <textarea id="descInput" rows="3" placeholder="Deskripsi Singkat"></textarea>
-            <input type="file" id="fileInput" accept="image/*,video/*">
-            <button onclick="saveToCloud()" style="width:100%; padding:12px; background:var(--success); color:white; border:none; border-radius:5px; font-weight:bold;">SIMPAN KE AWAN</button>
-            <button onclick="closeModal()" style="width:100%; margin-top:8px; padding:10px; background:#ccc; border:none; border-radius:5px;">BATAL</button>
+            <label style="font-size: 12px; color: #666;">Unggah Foto (Maks 1MB):</label>
+            <input type="file" id="fileInput" accept="image/*">
+            
+            <button id="btnSave" onclick="saveToCloud()" style="width:100%; padding:12px; background:var(--success); color:white; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">
+                SIMPAN KE AWAN
+            </button>
+            <button onclick="closeModal()" style="width:100%; margin-top:8px; padding:10px; background:#ccc; border:none; border-radius:5px; cursor:pointer;">BATAL</button>
         </div>
     </div>
 
     <script>
-        // KONFIGURASI FIREBASE KAMU (SUDAH SIAP PAKAI)
+        // 1. KONFIGURASI FIREBASE
         const firebaseConfig = {
-            apiKey: "AIzaSyAPIBmTyQEqkW3mqQ7ODre6...", 
+            apiKey: "AIzaSyAPIBmTyQEqkW3mqQ7ODre6...", // Ganti dengan API Key lengkapmu
             authDomain: "raksproduk-9e8b7.firebaseapp.com",
             databaseURL: "https://raksproduk-9e8b7-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "raksproduk-9e8b7",
@@ -96,14 +101,14 @@
             appId: "1:443507552363:web:1836b53c4490bf4aa6412e"
         };
 
-        // Inisialisasi Koneksi
+        // Inisialisasi
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         let isAdmin = false, currentPage = 'home';
 
-        // Fungsi Ambil Data Realtime
+        // 2. FUNGSI AMBIL DATA
         function initData() {
-            // Ambil data Backup Server
+            // Monitor Produk
             db.ref('products').on('value', (snapshot) => {
                 const list = document.getElementById('product-list');
                 list.innerHTML = '';
@@ -113,7 +118,7 @@
                 checkAdminUI();
             });
 
-            // Ambil data Plugin Server
+            // Monitor Plugin
             db.ref('plugins').on('value', (snapshot) => {
                 const list = document.getElementById('plugin-list');
                 list.innerHTML = '';
@@ -127,63 +132,100 @@
         function createCard(p, id, type) {
             return `
                 <div class="card">
-                    <div class="admin-controls admin-only">
-                        <button class="btn-ctrl" style="background:red" onclick="hapusCloud('${id}','${type}')"><i class="fa-solid fa-trash"></i></button>
-                    </div>
+                    ${isAdmin ? `
+                    <div class="admin-controls">
+                        <button class="btn-ctrl" style="background:red" onclick="hapusCloud('${id}','${type}')">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>` : ''}
                     <div class="media-frame">
-                        <img src="${p.file || 'https://via.placeholder.com/150'}">
+                        <img src="${p.file || 'https://via.placeholder.com/150'}" onerror="this.src='https://via.placeholder.com/150'">
                     </div>
                     <div class="info">
                         <div class="name">${p.nama}</div>
                         <div class="price">${p.harga}</div>
-                        <button class="btn-action bg-success" onclick="window.open('https://wa.me/6281234567890')">BELI</button>
+                        <button class="btn-action bg-success" onclick="window.open('https://wa.me/6281234567890?text=Halo, saya mau beli ${p.nama}')">BELI</button>
                     </div>
                 </div>`;
         }
 
-        // Simpan Data ke Firebase
+        // 3. FUNGSI SIMPAN DATA (DENGAN VALIDASI)
         function saveToCloud() {
             const n = document.getElementById('namaInput').value;
             const h = document.getElementById('hargaInput').value;
             const d = document.getElementById('descInput').value;
             const f = document.getElementById('fileInput').files[0];
+            const btn = document.getElementById('btnSave');
+            
             const path = (currentPage === 'home') ? 'products' : 'plugins';
 
             if(!n || !h) return alert("Nama dan Harga wajib diisi!");
 
-            if(f) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    db.ref(path).push({ nama: n, harga: h, desc: d, file: reader.result });
+            // Animasi Loading
+            btn.disabled = true;
+            btn.innerText = "MENGIRIM...";
+
+            const pushData = (imgData = null) => {
+                db.ref(path).push({
+                    nama: n,
+                    harga: h,
+                    desc: d,
+                    file: imgData,
+                    timestamp: Date.now()
+                })
+                .then(() => {
+                    alert("Data berhasil tersimpan di Cloud!");
                     closeModal();
-                };
+                    resetForm();
+                })
+                .catch((err) => {
+                    alert("Gagal: " + err.message);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerText = "SIMPAN KE AWAN";
+                });
+            };
+
+            if(f) {
+                // Validasi Ukuran (Maks 1MB untuk Realtime Database)
+                if(f.size > 1024 * 1024) {
+                    alert("Ukuran foto terlalu besar! Gunakan foto di bawah 1MB.");
+                    btn.disabled = false;
+                    btn.innerText = "SIMPAN KE AWAN";
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onloadend = () => pushData(reader.result);
                 reader.readAsDataURL(f);
             } else {
-                db.ref(path).push({ nama: n, harga: h, desc: d });
-                closeModal();
+                pushData();
             }
         }
 
-        // Hapus Data dari Firebase
+        // 4. FUNGSI HAPUS
         function hapusCloud(id, type) {
-            if(confirm("Hapus produk ini dari database awan?")) {
+            if(confirm("Hapus produk ini secara permanen?")) {
                 const path = (type === 'p') ? 'products' : 'plugins';
                 db.ref(path + '/' + id).remove();
             }
         }
 
-        // Fungsi Navigasi & UI
+        // 5. NAVIGASI & ADMIN UI
         function loginAdmin() {
             const pass = prompt("Masukkan Password Admin:");
             if(pass === "admin123") {
                 isAdmin = true;
                 alert("Login Berhasil!");
                 checkAdminUI();
+                initData(); // Refresh tampilan untuk memunculkan tombol hapus
+            } else {
+                alert("Password Salah!");
             }
         }
 
         function checkAdminUI() {
-            document.querySelectorAll('.admin-only').forEach(e => e.style.display = isAdmin ? 'flex' : 'none');
             document.getElementById('btn-add-master').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('lock-icon').className = isAdmin ? "fa-solid fa-unlock" : "fa-solid fa-lock";
         }
@@ -197,6 +239,12 @@
 
         function openModal() { document.getElementById('modalAdd').style.display = 'flex'; }
         function closeModal() { document.getElementById('modalAdd').style.display = 'none'; }
+        function resetForm() {
+            document.getElementById('namaInput').value = '';
+            document.getElementById('hargaInput').value = '';
+            document.getElementById('descInput').value = '';
+            document.getElementById('fileInput').value = '';
+        }
 
         window.onload = initData;
     </script>
